@@ -1,0 +1,80 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: online_exam_postgres
+    environment:
+      POSTGRES_DB: online_exam_management2
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - exam-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: online_exam_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - exam-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: online_exam_backend
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: online_exam_management2
+      DB_USERNAME: postgres
+      DB_PASSWORD: root
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      JWT_SECRET: your-super-secret-key-that-is-at-least-32-bytes-long
+      JWT_EXPIRATION: 86400000
+
+    ports:
+      - "8080:8080"
+
+    networks:
+      - exam-network
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: DockerFile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+
+    container_name: online_exam_frontend
+
+    depends_on:
+      - backend
+
+    ports:
+      - "5173:80"
+
+    networks:
+      - exam-network
+
+
+volumes:
+  postgres_data:
+  redis_data:
+
+
+networks:
+  exam-network:
+    driver: bridge
